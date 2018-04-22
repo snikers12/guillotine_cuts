@@ -1,6 +1,3 @@
-from Shape import Shape
-import Cut
-
 sheet = {
     'x': 0,
     'y': 0,
