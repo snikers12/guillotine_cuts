@@ -1,11 +1,13 @@
+import sys
+
 main_sheet = {
     'x': 0,
     'y': 0,
     'a': 52,
     'b': 25,
     'ref_id': None,
-    'cut': None,
     'det': None,
+    'cut': None,
     'm': None
 }
 
@@ -14,6 +16,7 @@ res = [main_sheet]
 details = list()
 details_square = 0
 rubber_square = 0
+sys.setrecursionlimit(1500)
 
 
 def get_details():
@@ -33,20 +36,24 @@ def main():
     global rubber_square
     dets = details
     sheets = get_sheet(res)
-    for sheet in sheets:
-        result = False
+    for sheet in reversed(sheets):
+        result = True
         for detail in dets:
             if detail['sum'] == 0:
                 continue
-            if place_horizontal(sheet, detail) or place_vertical(sheet, detail):
-                if cut_horizontal(sheet, detail) or cut_vertical(sheet, detail):
+            else:
+                result = False
+            if place_vertical(sheet, detail) or place_horizontal(sheet, detail):
+                if cut_vertical(sheet, detail) or cut_horizontal(sheet, detail):
                     result = True
                     break
         if not result:
             sheet['det'] = 'n'
-            rubber_square += sheet['a'] * sheet['b']
-            if rubber_square > details_square:
+            sheet_square = sheet['a'] * sheet['b']
+            if rubber_square + sheet_square > available_rubber_square:
                 return False
+            else:
+                rubber_square += sheet_square
 
 
 def get_sheet(act_list):
@@ -64,16 +71,14 @@ def get_detail(details_list):
 def place_horizontal(sheet, detail):
     if sheet['a'] < detail['a'] or sheet['b'] < detail['b']:
         return False
-    is_detail(sheet, detail)
-    return True
+    return is_detail(sheet, detail)
 
 
 def place_vertical(sheet, detail):
     if sheet['b'] < detail['a'] or sheet['a'] < detail['b']:
         return False
     detail['a'], detail['b'] = detail['b'], detail['a']
-    is_detail(sheet, detail)
-    return True
+    return is_detail(sheet, detail)
 
 
 def is_detail(sheet, detail):
@@ -81,12 +86,14 @@ def is_detail(sheet, detail):
         sheet['det'] = details.index(detail)
         detail['sum'] -= 1
         if not main():
+            if detail['a'] < detail['b']:
+                detail['a'], detail['b'] = detail['b'], detail['a']
             detail['sum'] += 1
+            return False
+    return True
 
 
 def cut_horizontal(sheet, detail):
-    if sheet['b'] == detail['b']:
-        return False
     sheet['cut'] = 0
     sheet['m'] = detail['b']
     new_sheet_1 = {
@@ -100,22 +107,26 @@ def cut_horizontal(sheet, detail):
     }
     new_sheet_2 = {
         'x': sheet['x'],
-        'y': detail['b'],
+        'y': sheet['y'] + detail['b'],
         'a': sheet['a'],
         'b': sheet['b'] - detail['b'],
         'ref_id': res.index(sheet),
         'det': None,
         'cut': None
     }
-    res.append(new_sheet_1)
     res.append(new_sheet_2)
+    res.append(new_sheet_1)
     if not main():
         res.pop()
         res.pop()
+        return False
+    return True
 
 
 def cut_vertical(sheet, detail):
-    sheet['cut'] = 0
+    if sheet['a'] == detail['a']:
+        return False
+    sheet['cut'] = 1
     sheet['m'] = detail['a']
     new_sheet_1 = {
         'x': sheet['x'],
@@ -127,7 +138,7 @@ def cut_vertical(sheet, detail):
         'cut': None
     }
     new_sheet_2 = {
-        'x': detail['a'],
+        'x': sheet['x'] + detail['a'],
         'y': sheet['y'],
         'a': sheet['a'] - detail['a'],
         'b': sheet['b'],
@@ -135,11 +146,13 @@ def cut_vertical(sheet, detail):
         'det': None,
         'cut': None
     }
-    res.append(new_sheet_1)
     res.append(new_sheet_2)
+    res.append(new_sheet_1)
     if not main():
         res.pop()
         res.pop()
+        return False
+    return True
 
 get_details()
 available_rubber_square = main_sheet['a'] * main_sheet['b'] - details_square
