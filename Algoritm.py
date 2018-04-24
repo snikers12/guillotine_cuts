@@ -5,14 +5,15 @@ main_sheet = {
     'b': 25,
     'ref_id': None,
     'cut': None,
-    'det': 'l',
+    'det': None,
     'm': None
 }
 
 main_sheet_square = main_sheet['a'] * main_sheet['b']
-res = list(main_sheet)
+res = [main_sheet]
 details = list()
 details_square = 0
+rubber_square = 0
 
 
 def get_details():
@@ -28,9 +29,10 @@ def get_details():
         details_square += int(s[0]) * int(s[1]) * int(s[2])
 
 
-def main(res_list, details_list):
-    dets = details_list
-    sheets = get_sheet(res_list)
+def main():
+    global rubber_square
+    dets = details
+    sheets = get_sheet(res)
     for sheet in sheets:
         result = False
         for detail in dets:
@@ -42,10 +44,13 @@ def main(res_list, details_list):
                     break
         if not result:
             sheet['det'] = 'n'
+            rubber_square += sheet['a'] * sheet['b']
+            if rubber_square > details_square:
+                return False
 
 
 def get_sheet(act_list):
-    return [item for item in act_list if item['det'] == 'l' and item['cut'] is None]
+    return [item for item in act_list if item['det'] is None and item['cut'] is None]
 
 
 def get_detail(details_list):
@@ -60,6 +65,7 @@ def place_horizontal(sheet, detail):
     if sheet['a'] < detail['a'] or sheet['b'] < detail['b']:
         return False
     is_detail(sheet, detail)
+    return True
 
 
 def place_vertical(sheet, detail):
@@ -67,24 +73,76 @@ def place_vertical(sheet, detail):
         return False
     detail['a'], detail['b'] = detail['b'], detail['a']
     is_detail(sheet, detail)
+    return True
 
 
 def is_detail(sheet, detail):
     if sheet['a'] == detail['a'] and sheet['b'] == detail['b']:
         sheet['det'] = details.index(detail)
-        main()
+        detail['sum'] -= 1
+        if not main():
+            detail['sum'] += 1
 
 
 def cut_horizontal(sheet, detail):
+    if sheet['b'] == detail['b']:
+        return False
     sheet['cut'] = 0
     sheet['m'] = detail['b']
-    main()
+    new_sheet_1 = {
+        'x': sheet['x'],
+        'y': sheet['y'],
+        'a': sheet['a'],
+        'b': detail['b'],
+        'ref_id': res.index(sheet),
+        'det': None,
+        'cut': None
+    }
+    new_sheet_2 = {
+        'x': sheet['x'],
+        'y': detail['b'],
+        'a': sheet['a'],
+        'b': sheet['b'] - detail['b'],
+        'ref_id': res.index(sheet),
+        'det': None,
+        'cut': None
+    }
+    res.append(new_sheet_1)
+    res.append(new_sheet_2)
+    if not main():
+        res.pop()
+        res.pop()
 
 
 def cut_vertical(sheet, detail):
     sheet['cut'] = 0
     sheet['m'] = detail['a']
-    main()
-
+    new_sheet_1 = {
+        'x': sheet['x'],
+        'y': sheet['y'],
+        'a': detail['a'],
+        'b': sheet['b'],
+        'ref_id': res.index(sheet),
+        'det': None,
+        'cut': None
+    }
+    new_sheet_2 = {
+        'x': detail['a'],
+        'y': sheet['y'],
+        'a': sheet['a'] - detail['a'],
+        'b': sheet['b'],
+        'ref_id': res.index(sheet),
+        'det': None,
+        'cut': None
+    }
+    res.append(new_sheet_1)
+    res.append(new_sheet_2)
+    if not main():
+        res.pop()
+        res.pop()
 
 get_details()
+available_rubber_square = main_sheet['a'] * main_sheet['b'] - details_square
+main()
+for i in res:
+    print(i)
