@@ -50,6 +50,8 @@ def main():
         if not result:
             sheet['det'] = 'n'
             sheet_square = sheet['a'] * sheet['b']
+            if rubber_square == 51:
+                rubber_square
             if rubber_square + sheet_square > available_rubber_square:
                 return False
             else:
@@ -94,6 +96,9 @@ def is_detail(sheet, detail):
 
 
 def cut_horizontal(sheet, detail):
+    global rubber_square
+    if sheet['b'] == detail['b']:
+        return False
     sheet['cut'] = 0
     sheet['m'] = detail['b']
     new_sheet_1 = {
@@ -117,13 +122,17 @@ def cut_horizontal(sheet, detail):
     res.append(new_sheet_2)
     res.append(new_sheet_1)
     if not main():
+        # for x in range(2):
         res.pop()
-        res.pop()
+        last_record = res.pop()
+        if last_record['det'] == 'n':
+            rubber_square -= last_record['a'] * last_record['b']
         return False
     return True
 
 
 def cut_vertical(sheet, detail):
+    global rubber_square
     if sheet['a'] == detail['a']:
         return False
     sheet['cut'] = 1
@@ -149,8 +158,11 @@ def cut_vertical(sheet, detail):
     res.append(new_sheet_2)
     res.append(new_sheet_1)
     if not main():
+        # for x in range(2):
         res.pop()
-        res.pop()
+        last_record = res.pop()
+        if last_record['det'] == 'n':
+            rubber_square -= last_record['a'] * last_record['b']
         return False
     return True
 
