@@ -15,6 +15,7 @@ main_sheet_square = main_sheet['a'] * main_sheet['b']
 res = [main_sheet]
 details = list()
 details_square = 0
+details_count = 0
 rubber_square = 0
 sys.setrecursionlimit(1500)
 
@@ -22,6 +23,7 @@ sys.setrecursionlimit(1500)
 def get_details():
     f = open('details.txt', 'r')
     global details_square
+    global details_count
     for line in f:
         s = line.split()
         details.append({
@@ -30,35 +32,36 @@ def get_details():
             'b': int(s[2])
         })
         details_square += int(s[0]) * int(s[1]) * int(s[2])
+        details_count += int(s[0])
 
 
 def main():
     global rubber_square
-    dets = details
-    sheets = get_sheet(res)
-    for sheet in reversed(sheets):
+    sheets = get_sheets(res)
+    sheet = sheets[-1] if len(sheets) > 0 else False if details_count > 0 else True
+    if not isinstance(sheet, bool):
         result = True
-        for detail in dets:
+        for detail in details:
             if detail['sum'] == 0:
                 continue
             else:
                 result = False
-            if place_vertical(sheet, detail) or place_horizontal(sheet, detail):
-                if cut_vertical(sheet, detail) or cut_horizontal(sheet, detail):
-                    result = True
-                    break
+            if (place_vertical(sheet, detail) and cut_vertical(sheet, detail)) or \
+                    (place_horizontal(sheet, detail) and cut_vertical(sheet, detail)):
+                result = True
+                break
         if not result:
-            sheet['det'] = 'n'
             sheet_square = sheet['a'] * sheet['b']
-            if rubber_square == 51:
-                rubber_square
             if rubber_square + sheet_square > available_rubber_square:
                 return False
             else:
                 rubber_square += sheet_square
+                sheet['det'] = 'n'
+                return main()
+    return True
 
 
-def get_sheet(act_list):
+def get_sheets(act_list):
     return [item for item in act_list if item['det'] is None and item['cut'] is None]
 
 
@@ -73,17 +76,18 @@ def get_detail(details_list):
 def place_horizontal(sheet, detail):
     if sheet['a'] < detail['a'] or sheet['b'] < detail['b']:
         return False
-    return is_detail(sheet, detail)
+    return True
 
 
 def place_vertical(sheet, detail):
     if sheet['b'] < detail['a'] or sheet['a'] < detail['b']:
         return False
     detail['a'], detail['b'] = detail['b'], detail['a']
-    return is_detail(sheet, detail)
+    return True
 
 
 def is_detail(sheet, detail):
+    global rubber_square
     if sheet['a'] == detail['a'] and sheet['b'] == detail['b']:
         sheet['det'] = details.index(detail)
         detail['sum'] -= 1
@@ -92,13 +96,14 @@ def is_detail(sheet, detail):
                 detail['a'], detail['b'] = detail['b'], detail['a']
             detail['sum'] += 1
             return False
-    return True
+        return True
+    return False
 
 
 def cut_horizontal(sheet, detail):
     global rubber_square
     if sheet['b'] == detail['b']:
-        return False
+        return is_detail(sheet, detail)
     sheet['cut'] = 0
     sheet['m'] = detail['b']
     new_sheet_1 = {
@@ -121,12 +126,11 @@ def cut_horizontal(sheet, detail):
     }
     res.append(new_sheet_2)
     res.append(new_sheet_1)
-    if not main():
-        # for x in range(2):
-        res.pop()
-        last_record = res.pop()
-        if last_record['det'] == 'n':
-            rubber_square -= last_record['a'] * last_record['b']
+    if not is_detail(res[-1], detail):
+        for x in range(2):
+            last_record = res.pop()
+            if last_record['det'] == 'n':
+                rubber_square -= last_record['a'] * last_record['b']
         return False
     return True
 
@@ -134,7 +138,7 @@ def cut_horizontal(sheet, detail):
 def cut_vertical(sheet, detail):
     global rubber_square
     if sheet['a'] == detail['a']:
-        return False
+        return cut_horizontal(sheet, detail)
     sheet['cut'] = 1
     sheet['m'] = detail['a']
     new_sheet_1 = {
@@ -157,17 +161,20 @@ def cut_vertical(sheet, detail):
     }
     res.append(new_sheet_2)
     res.append(new_sheet_1)
-    if not main():
-        # for x in range(2):
-        res.pop()
-        last_record = res.pop()
-        if last_record['det'] == 'n':
-            rubber_square -= last_record['a'] * last_record['b']
+    if not cut_horizontal(res[-1], detail):
+        for x in range(2):
+            last_record = res.pop()
+            if last_record['det'] == 'n':
+                rubber_square -= last_record['a'] * last_record['b']
         return False
     return True
 
+
 get_details()
 available_rubber_square = main_sheet['a'] * main_sheet['b'] - details_square
-main()
-for i in res:
-    print(i)
+can_be_placed = main()
+if can_be_placed:
+    for i in range(len(res)):
+        print(i, res[i])
+else:
+    print(False)
