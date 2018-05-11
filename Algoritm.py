@@ -1,3 +1,9 @@
+import sys
+import numpy as np
+from PyQt5.QtWidgets import QApplication
+
+from Painting import Painting
+
 main_sheet = {  # главный лист
     'x': 0,  # положение левого нижнего угла листа на оси Х
     'y': 0,  # положение левого нижнего угла листа на оси Y
@@ -23,7 +29,7 @@ def get_details():
     :return: 
     """
     f = open('details.txt', 'r')  # открытие файла с деталями для чтения
-    global details_square, details_count, main_sheet_square
+    global details_square, details_count, main_sheet_square, details
     # считываем длину и ширину главного листа
     l = f.readline().split()
     main_sheet['a'] = int(l[0])
@@ -35,10 +41,12 @@ def get_details():
         details.append({
             'sum': int(s[0]),
             'a': int(s[1]),
-            'b': int(s[2])
+            'b': int(s[2]),
+            'or': int(s[3]) if len(s) == 4 else None
         })
         details_square += int(s[0]) * int(s[1]) * int(s[2])
         details_count += int(s[0])
+    details = sorted(details, key=lambda item: (-item['a']*item['b'], -item['a']))
 
 
 def recursive():
@@ -92,7 +100,7 @@ def place_horizontal(sheet, detail):
     True - деталь можно расположить горизонтально
     False - деталь нельзя расположить горизонтально
     """
-    if sheet['a'] < detail['a'] or sheet['b'] < detail['b']:
+    if sheet['a'] < detail['a'] or sheet['b'] < detail['b'] or detail['or'] == 1:
         return False
     return True
 
@@ -106,7 +114,7 @@ def place_vertical(sheet, detail):
     True - деталь можно расположить вертикльно
     False - деталь нельзя расположить вертикльно
     """
-    if sheet['b'] < detail['a'] or sheet['a'] < detail['b']:
+    if sheet['b'] < detail['a'] or sheet['a'] < detail['b'] or detail['or'] == 0:
         return False
     detail['a'], detail['b'] = detail['b'], detail['a']
     return True
@@ -229,14 +237,26 @@ def cut_vertical(sheet, detail):
     return True
 
 
-get_details()
-available_waste_square = main_sheet['a'] * main_sheet['b'] - details_square
-if main_sheet_square < details_square:
-    print("Can't be placed!")
-else:
-    can_be_placed = recursive()
-    if can_be_placed:
-        for i in range(len(res)):
-            print(i, res[i])
-    else:
+if __name__ == '__main__':
+    get_details()
+    if main_sheet_square < details_square:
         print("Can't be placed!")
+    else:
+        max_width = main_sheet['a']
+        main_sheet['a'] = int(np.ceil(details_square/main_sheet['b']))
+        available_waste_square = main_sheet['a'] * main_sheet['b'] - details_square
+        main_sheet_square = main_sheet['a'] * main_sheet['b']
+        while True:
+            if recursive():
+                for i in range(len(res)):
+                    print(i, res[i])
+                app = QApplication(sys.argv)
+                ex = Painting(res)
+                sys.exit(app.exec_())
+            elif main_sheet['a'] < max_width:
+                main_sheet['a'] += 1
+                available_waste_square = main_sheet['a'] * main_sheet['b'] - details_square
+                main_sheet_square = main_sheet['a'] * main_sheet['b']
+            else:
+                print("Can't be placed!")
+                break
