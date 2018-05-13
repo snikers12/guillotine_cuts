@@ -21,6 +21,8 @@ details = list()  # список, в котором будут содеража�
 details_square = 0  # общая площадь деталей
 details_count = 0  # общее количество деталей
 waste_square = 0  # площадь отходов
+first_orient = 1  # первое проверяемое расположение детали: 0 - горизонтальное, 1 - вертикальное
+first_cut = 1  # первый проверяемый разрез: 0 - горизонтальный, 1 - вертикальный
 
 
 def get_details():
@@ -62,8 +64,8 @@ def recursive():
         for detail in details:
             if detail['sum'] == 0:
                 continue  # если деталей такого размера не осталось, переходим к следующему размеру
-            if (place_vertical(sheet, detail) and cut_vertical(sheet, detail)) or \
-                    (place_horizontal(sheet, detail) and cut_vertical(sheet, detail)):
+            if (get_orient(sheet, detail, True) and get_cut(sheet, detail)) or \
+                    (get_orient(sheet, detail, False) and get_cut(sheet, detail)):
                 result = True
                 break
         if not result:
@@ -80,6 +82,22 @@ def recursive():
     else:
         return sheet
     return True
+
+
+def get_orient(sheet, detail, first):
+    if first:
+        return place_vertical(sheet, detail) if first_orient == 1 else place_horizontal(sheet, detail)
+    else:
+        return place_horizontal(sheet, detail) if first_orient == 1 else place_vertical(sheet, detail)
+
+
+def get_cut(sheet, detail, cur_cut=None):
+    if cur_cut is None:
+        return cut_vertical(sheet, detail) if first_cut == 1 else cut_horizontal(sheet, detail)
+    elif cur_cut:
+        return cut_horizontal(sheet, detail) if first_cut == cur_cut else is_detail(sheet, detail)
+    else:
+        return cut_vertical(sheet, detail) if first_cut == cur_cut else is_detail(sheet, detail)
 
 
 def get_sheets(act_list):
@@ -100,6 +118,8 @@ def place_horizontal(sheet, detail):
     True - деталь можно расположить горизонтально
     False - деталь нельзя расположить горизонтально
     """
+    if detail['a'] < detail['b']:
+        detail['a'], detail['b'] = detail['b'], detail['a']
     if sheet['a'] < detail['a'] or sheet['b'] < detail['b'] or detail['or'] == 1:
         return False
     return True
@@ -116,7 +136,8 @@ def place_vertical(sheet, detail):
     """
     if sheet['b'] < detail['a'] or sheet['a'] < detail['b'] or detail['or'] == 0:
         return False
-    detail['a'], detail['b'] = detail['b'], detail['a']
+    if detail['a'] > detail['b']:
+        detail['a'], detail['b'] = detail['b'], detail['a']
     return True
 
 
@@ -158,6 +179,8 @@ def cut_horizontal(sheet, detail):
     """
     global waste_square
     if sheet['b'] == detail['b']:
+        if first_cut == 0:
+            return cut_vertical(sheet, detail)
         return is_detail(sheet, detail)
     sheet['cut'] = 0
     sheet['m'] = detail['b']
@@ -181,7 +204,7 @@ def cut_horizontal(sheet, detail):
     }
     res.append(new_sheet_2)
     res.append(new_sheet_1)
-    if not is_detail(res[-1], detail):
+    if not get_cut(res[-1], detail, 0):
         # если после рекурсивного выполнения с данным разрезом получен отрицательный результат,
         # то возвращаем те значения, что были до его выполнения
         for x in range(2):
@@ -203,7 +226,9 @@ def cut_vertical(sheet, detail):
     """
     global waste_square
     if sheet['a'] == detail['a']:
-        return cut_horizontal(sheet, detail)
+        if first_cut == 1:
+            return cut_horizontal(sheet, detail)
+        return is_detail(sheet, detail)
     sheet['cut'] = 1
     sheet['m'] = detail['a']
     new_sheet_1 = {
@@ -226,7 +251,7 @@ def cut_vertical(sheet, detail):
     }
     res.append(new_sheet_2)
     res.append(new_sheet_1)
-    if not cut_horizontal(res[-1], detail):
+    if not get_cut(res[-1], detail, 1):
         # если после рекурсивного выполнения с данным разрезом получен отрицательный результат,
         # то возвращаем те значения, что были до его выполнения
         for x in range(2):
@@ -252,6 +277,7 @@ if __name__ == '__main__':
                     print(i, res[i])
                 app = QApplication(sys.argv)
                 ex = Painting(res)
+                res = [main_sheet]
                 sys.exit(app.exec_())
             elif main_sheet['a'] < max_width:
                 main_sheet['a'] += 1
@@ -259,4 +285,5 @@ if __name__ == '__main__':
                 main_sheet_square = main_sheet['a'] * main_sheet['b']
             else:
                 print("Can't be placed!")
+                res = [main_sheet]
                 break
