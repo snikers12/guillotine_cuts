@@ -1,9 +1,16 @@
 import sys
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtWidgets import QWidget
 
 import AlgorithmClass
-import Algoritm
 from StartWindow import Ui_MainWindow
+from MapWindow import MapWindow
+
+
+class TestDialog(MapWindow):
+    def __init__(self, dialog):
+        MapWindow.__init__(self)
+        self.setupUi(dialog)
 
 
 class TestApp(Ui_MainWindow):
@@ -43,17 +50,22 @@ class TestApp(Ui_MainWindow):
             orientation = int(self.tableWidget.item(row, 3).text())
             details.append({
                 'sum': detailCount,
-                'a': detailWidth,
-                'b': detailHeight,
-                'or': orientation - 1 if orientation > 0 else None
+                'a': detailWidth if detailWidth >= detailHeight else detailHeight,
+                'b': detailHeight if detailWidth >= detailHeight else detailWidth,
+                'or': orientation - 1 if 0 < orientation <= 2 else None
             })
             details_square += detailCount * detailWidth * detailHeight
             details_count += detailCount
-        algorithm = AlgorithmClass.GuillotineCuts(main_sheet, details, details_square, details_count)
+        first_orient = abs(self.firstOrient.currentIndex() - 1)
+        first_cut = abs(self.firstCut.currentIndex() - 1)
+        cell = self.unitPx.value()
+        algorithm = AlgorithmClass.GuillotineCuts(main_sheet, details, details_square, details_count, first_orient,
+                                                  first_cut, cell)
         algorithm.start_process()
 
 
 if __name__ == '__main__':
+    import sys
     app = QtWidgets.QApplication(sys.argv)
     dialog = QtWidgets.QMainWindow()
 

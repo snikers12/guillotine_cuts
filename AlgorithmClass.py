@@ -1,12 +1,13 @@
-import sys
-import numpy as np
-from PyQt5.QtWidgets import QApplication
+from PyQt5 import QtWidgets
 
-from Painting import Painting
+import numpy as np
+
+from MapWindow import MapWindow
+from Warning import WarningWindow
 
 
 class GuillotineCuts:
-    def __init__(self, main_sheet, details, details_square, details_count):
+    def __init__(self, main_sheet, details, details_square, details_count, first_orient, first_cut, cell):
         self.main_sheet = {  # главный лист
             'x': 0,  # положение левого нижнего угла листа на оси Х
             'y': 0,  # положение левого нижнего угла листа на оси Y
@@ -14,19 +15,21 @@ class GuillotineCuts:
             'b': main_sheet['b'],  # ширина листа
             'ref_id': None,  # путем разрезания какого листа получен
             'det': None,
-        # если является деталью, то id этой детали: int - id детали, None - неиспользованный лист, 'n' - отход
+            # если является деталью, то id этой детали: int - id детали, None - неиспользованный лист, 'n' - отход
             'cut': None,  # разрез, который производится на данном листе: 0 - горизонтальный, 1 - вертикальный
             'm': None  # отступ при разрезе
         }
 
         self.main_sheet_square = main_sheet['a'] * main_sheet['b']  # площадь главного листа
         self.res = [self.main_sheet]  # список, с которым в дальнейшем будет идти работа
-        self.details = details # список, в котором будут содеражаться детали
+        # список, в котором будут содеражаться детали
+        self.details = sorted(details, key=lambda item: (-item['a'] * item['b'], -item['a']))
         self.details_square = details_square  # общая площадь деталей
         self.details_count = details_count  # общее количество деталей
         self.waste_square = 0  # площадь отходов
-        self.first_orient = 1  # первое проверяемое расположение детали: 0 - горизонтальное, 1 - вертикальное
-        self.first_cut = 1  # первый проверяемый разрез: 0 - горизонтальный, 1 - вертикальный
+        self.first_orient = first_orient  # первое проверяемое расположение детали: 0 - горизонтальное, 1 - вертикальное
+        self.first_cut = first_cut  # первый проверяемый разрез: 0 - горизонтальный, 1 - вертикальный
+        self.cell = cell
 
     def get_details(self):
         """
@@ -130,13 +133,13 @@ class GuillotineCuts:
         :param sheet: лист, на котором идет расположение детали 
         :param detail: деталь
         :return:    
-        True - деталь можно расположить вертикльно
-        False - деталь нельзя расположить вертикльно
+        True - деталь можно расположить вертикально
+        False - деталь нельзя расположить вертикально
         """
-        if sheet['b'] < detail['a'] or sheet['a'] < detail['b'] or detail['or'] == 0:
-            return False
         if detail['a'] > detail['b']:
             detail['a'], detail['b'] = detail['b'], detail['a']
+        if sheet['a'] < detail['a'] or sheet['b'] < detail['b'] or detail['or'] == 0:
+            return False
         return True
 
     def is_detail(self, sheet, detail):
@@ -254,10 +257,17 @@ class GuillotineCuts:
             return False
         return True
 
+    @staticmethod
+    def warning():
+        Dialog = QtWidgets.QDialog()
+        ui = WarningWindow()
+        ui.setupUi(Dialog)
+        Dialog.show()
+        Dialog.exec()
+
     def start_process(self):
-        # get_details()
         if self.main_sheet_square < self.details_square:
-            print("Can't be placed!")
+            self.warning()
         else:
             max_width = self.main_sheet['a']
             self.main_sheet['a'] = int(np.ceil(self.details_square / self.main_sheet['b']))
@@ -267,15 +277,19 @@ class GuillotineCuts:
                 if self.recursive():
                     for i in range(len(self.res)):
                         print(i, self.res[i])
-                    app = QApplication(sys.argv)
-                    ex = Painting(self.res)
-                    self.res = [self.main_sheet]
-                    sys.exit(app.exec_())
+                    Dialog = QtWidgets.QDialog()
+                    ui = MapWindow()
+                    ui.setupUi(Dialog, self.res, self.cell)
+                    Dialog.show()
+                    Dialog.exec()
+                    break
                 elif self.main_sheet['a'] < max_width:
                     self.main_sheet['a'] += 1
+                    self.main_sheet['cut'] = None
+                    self.main_sheet['m'] = None
                     self.available_waste_square = self.main_sheet['a'] * self.main_sheet['b'] - self.details_square
                     self.main_sheet_square = self.main_sheet['a'] * self.main_sheet['b']
                 else:
-                    print("Can't be placed!")
+                    self.warning()
                     self.res = [self.main_sheet]
                     break

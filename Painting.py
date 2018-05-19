@@ -4,20 +4,15 @@ from PyQt5.QtCore import Qt
 
 
 class Painting(QWidget):
-    cell = 50
-    margin = 10
-
-    def __init__(self, res):
+    def __init__(self, res, cell):
         super().__init__()
+        self.cell = cell
+        self.margin = 15
         self.res = res
-        self.initUI()
-
-    def initUI(self):
-        self.setGeometry(30, 30,
+        self.setGeometry(self.margin, self.margin,
                          self.cell*(self.res[0]['a']) + 2 * self.margin,
                          self.cell*(self.res[0]['b']) + 2 * self.margin)
         self.setWindowTitle('Guillotine cuts map')
-        self.show()
 
     def paintEvent(self, e):
         qp = QPainter()
@@ -37,6 +32,10 @@ class Painting(QWidget):
                 qp.drawLine(self.margin, self.margin, self.margin, self.margin + item['b'] * self.cell)
                 qp.drawLine(self.margin + item['a'] * self.cell, self.margin,
                             self.margin + item['a'] * self.cell, self.margin + item['b'] * self.cell)
+                qp.drawText(0, 0,
+                            self.margin * 2 + item['a'] * self.cell,
+                            self.margin * 2 + item['b'] * self.cell,
+                            Qt.AlignHCenter, str(item['a']) + 'x' + str(item['b']))
                 i += 1
             if item['cut'] == 1:
                 qp.drawLine(self.margin + (item['x'] + item['m']) * self.cell, self.margin + item['y'] * self.cell,
