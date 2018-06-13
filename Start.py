@@ -22,15 +22,15 @@ class TestApp(Ui_MainWindow):
         self.startButton.clicked.connect(self.startProcess)
 
     def addRow(self):
-        #Retrieve text from QLineEdit
+        # Retrieve text from QLineEdit
         detailWidth = self.detailWidth.text()
         detailHeight = self.detailHeight.text()
         detailCount = self.detailCount.text()
         comboBox = str(self.comboBox.currentIndex())
-        #Create a empty row at bottom of table
+        # Create a empty row at bottom of table
         numRows = self.tableWidget.rowCount()
         self.tableWidget.insertRow(numRows)
-        #Add text to the row
+        # Add text to the row
         self.tableWidget.setItem(numRows, 0, QtWidgets.QTableWidgetItem(detailCount))
         self.tableWidget.setItem(numRows, 1, QtWidgets.QTableWidgetItem(detailWidth))
         self.tableWidget.setItem(numRows, 2, QtWidgets.QTableWidgetItem(detailHeight))
@@ -42,30 +42,40 @@ class TestApp(Ui_MainWindow):
         details = list()
         main_sheet['a'] = int(self.sheetWidth.text())
         main_sheet['b'] = int(self.sheetHeight.text())
+        min_length = 0
+        min_width = 0
         numRows = self.tableWidget.rowCount()
         for row in range(numRows):
             detailCount = int(self.tableWidget.item(row, 0).text())
-            detailWidth = int(self.tableWidget.item(row, 1).text())
-            detailHeight = int(self.tableWidget.item(row, 2).text())
-            orientation = int(self.tableWidget.item(row, 3).text())
+            detailLength = int(self.tableWidget.item(row, 1).text())
+            detailWidth = int(self.tableWidget.item(row, 2).text())
+            orientation = int(self.tableWidget.item(row, 3).text()) - 1 if \
+                int(self.tableWidget.item(row, 3).text()) - 1 >= 0 else None
+            if detailLength < detailWidth:
+                detailLength, detailWidth = detailWidth, detailLength
             details.append({
                 'sum': detailCount,
-                'a': detailWidth if detailWidth >= detailHeight else detailHeight,
-                'b': detailHeight if detailWidth >= detailHeight else detailWidth,
-                'or': orientation - 1 if 0 < orientation <= 2 else None
+                'a': detailLength,
+                'b': detailWidth,
+                'or': orientation
             })
-            details_square += detailCount * detailWidth * detailHeight
+            min_length = detailLength if orientation == 0 and detailLength > min_length else detailWidth if \
+                detailWidth > min_length else min_length
+            min_width = detailWidth if orientation == 1 and detailWidth > min_width else detailLength if \
+                detailLength > min_width else min_width
+            details_square += detailCount * detailLength * detailWidth
             details_count += detailCount
-        first_orient = abs(self.firstOrient.currentIndex() - 1)
-        first_cut = abs(self.firstCut.currentIndex() - 1)
+        # first_orient = abs(self.firstOrient.currentIndex() - 1)
+        # first_cut = abs(self.firstCut.currentIndex() - 1)
         cell = self.unitPx.value()
-        algorithm = AlgorithmClass.GuillotineCuts(main_sheet, details, details_square, details_count, first_orient,
-                                                  first_cut, cell)
+        algorithm = AlgorithmClass.GuillotineCuts(main_sheet, details, details_square, details_count, min_length,
+                                                  min_width, cell)
         algorithm.start_process()
 
 
 if __name__ == '__main__':
     import sys
+
     app = QtWidgets.QApplication(sys.argv)
     dialog = QtWidgets.QMainWindow()
 

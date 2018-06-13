@@ -62,7 +62,7 @@ def get_details():
             detailLength > min_width else min_width
         details_square += detailCount * detailLength * detailWidth
         details_count += detailCount
-    details = sorted(details, key=lambda item: (-item['a']*item['b'], -item['a']))
+    details = sorted(details, key=lambda item: (-item['a'] * item['b'], -item['a']))
 
 
 def recursive():
@@ -78,10 +78,10 @@ def recursive():
         for detail in details:
             if detail['sum'] == 0:
                 continue  # если деталей такого размера не осталось, переходим к следующему размеру
-            if (get_orient(sheet, detail, True) and get_cut(sheet, detail, True)) or \
-                    (get_orient(sheet, detail, True) and get_cut(sheet, detail, True)) or \
-                    (get_orient(sheet, detail, False) and get_cut(sheet, detail, True)) or \
-                    (get_orient(sheet, detail, False) and get_cut(sheet, detail, True)):
+            if (get_orient(sheet, detail, True) and cut_vertical(sheet, detail, True)) or \
+                    (get_orient(sheet, detail, True) and cut_horizontal(sheet, detail, True)) or \
+                    (get_orient(sheet, detail, False) and cut_vertical(sheet, detail, True)) or \
+                    (get_orient(sheet, detail, False) and cut_horizontal(sheet, detail, True)):
                 result = True
                 break
         if not result:
@@ -101,19 +101,16 @@ def recursive():
 
 
 def get_orient(sheet, detail, first):
-    if first:
-        return place_vertical(sheet, detail) if sheet['a'] >= sheet['b'] else place_horizontal(sheet, detail)
-    else:
-        return place_horizontal(sheet, detail) if sheet['a'] >= sheet['b'] else place_vertical(sheet, detail)
+    return place_vertical(sheet, detail) if first else place_horizontal(sheet, detail)
 
 
-def get_cut(sheet, detail, first):
-    if first:
-        return cut_vertical(sheet, detail, True) if sheet['b'] - detail['b'] < sheet['a'] - detail['a'] \
-            else cut_horizontal(sheet, detail, True)
-    else:
-        return cut_horizontal(sheet, detail, False) if sheet['b'] - detail['b'] < sheet['a'] - detail['a'] \
-            else cut_vertical(sheet, detail, False)
+# def get_cut(sheet, detail, first):
+#     if cur_cut is None:
+#         return cut_vertical(sheet, detail, cur_cut) if first_cut == 1 else cut_horizontal(sheet, detail, cur_cut)
+#     elif cur_cut:
+#         return cut_horizontal(sheet, detail) if first_cut == cur_cut else is_detail(sheet, detail)
+#     else:
+#         return cut_vertical(sheet, detail) if first_cut == cur_cut else is_detail(sheet, detail)
 
 
 def get_sheets(act_list):
@@ -283,61 +280,18 @@ if __name__ == '__main__':
     if main_sheet_square < details_square:
         print("Can't be placed!")
     else:
-        max_length = main_sheet['a']
-        max_width = main_sheet['b']
-        max_square = details_square
-        while max_square < max_length * max_width:
-            # i = min_width if min_width < min_length else min_length
-            i = max_width
-            while i >= min_width:
-                if max_square % i != 0:
-                    i -= 1
-                    continue
-                if max_length >= (max_square//i) >= min_length and max_width >= i >= min_width:
-                    main_sheet['a'] = max_square // i
-                    main_sheet['b'] = i
-                    cur_length = main_sheet['a']
-                    cur_width = main_sheet['b']
-                    available_waste_square = main_sheet['a'] * main_sheet['b'] - details_square
-                    main_sheet_square = main_sheet['a'] * main_sheet['b']
-                    if recursive():
-                        for i in range(len(res)):
-                            print(i, res[i])
+        available_waste_square = main_sheet['a'] * main_sheet['b'] - details_square
+        main_sheet_square = main_sheet['a'] * main_sheet['b']
+        if recursive():
+            for i in range(len(res)):
+                print(i, res[i])
 
-                        app = QtWidgets.QApplication(sys.argv)
-                        Dialog = QtWidgets.QDialog()
-                        ui = MapWindow()
-                        ui.setupUi(Dialog, res, 20)
-                        Dialog.show()
-                        Dialog.exec()
-                        sys.exit(app.exec_())
-                if max_width >= (max_square//i) >= min_width and max_length >= i >= min_length:
-                    main_sheet['a'] = i
-                    main_sheet['b'] = max_square // i
-                    cur_length = main_sheet['a']
-                    cur_width = main_sheet['b']
-                    available_waste_square = main_sheet['a'] * main_sheet['b'] - details_square
-                    main_sheet_square = main_sheet['a'] * main_sheet['b']
-                    if recursive():
-                        for i in range(len(res)):
-                            print(i, res[i])
-
-                        app = QtWidgets.QApplication(sys.argv)
-                        Dialog = QtWidgets.QDialog()
-                        ui = MapWindow()
-                        ui.setupUi(Dialog, res, 20)
-                        Dialog.show()
-                        Dialog.exec()
-                        sys.exit(app.exec_())
-                i -= 1
-            max_square += 1
-                # elif main_sheet['a'] < max_width:
-                #     main_sheet['a'] += 1
-                #     main_sheet['cut'] = None
-                #     main_sheet['m'] = None
-                #     available_waste_square = main_sheet['a'] * main_sheet['b'] - details_square
-                #     main_sheet_square = main_sheet['a'] * main_sheet['b']
-                # else:
-                #     print("Can't be placed!")
-                #     res = [main_sheet]
-                #     break
+            app = QtWidgets.QApplication(sys.argv)
+            Dialog = QtWidgets.QDialog()
+            ui = MapWindow()
+            ui.setupUi(Dialog, res, 25)
+            Dialog.show()
+            Dialog.exec()
+            sys.exit(app.exec_())
+        else:
+            print("Can't be placed!")

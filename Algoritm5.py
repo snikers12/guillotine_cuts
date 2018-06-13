@@ -56,13 +56,13 @@ def get_details():
             'b': detailWidth,
             'or': orientation
         })
-        min_length = detailLength if orientation == 0 and detailLength > min_length else detailWidth if \
-            detailWidth > min_length else min_length
-        min_width = detailWidth if orientation == 1 and detailWidth > min_width else detailLength if \
-            detailLength > min_width else min_width
+        min_width = detailLength if orientation == 0 and detailLength > min_width else detailWidth if \
+            detailWidth > min_width else min_width
+        min_length = detailWidth if orientation == 1 and detailWidth > min_length else detailLength if \
+            detailLength > min_length else min_length
         details_square += detailCount * detailLength * detailWidth
         details_count += detailCount
-    details = sorted(details, key=lambda item: (-item['a']*item['b'], -item['a']))
+    details = sorted(details, key=lambda item: (-item['a'] * item['b'], -item['a']))
 
 
 def recursive():
@@ -283,61 +283,29 @@ if __name__ == '__main__':
     if main_sheet_square < details_square:
         print("Can't be placed!")
     else:
-        max_length = main_sheet['a']
         max_width = main_sheet['b']
-        max_square = details_square
-        while max_square < max_length * max_width:
-            # i = min_width if min_width < min_length else min_length
-            i = max_width
-            while i >= min_width:
-                if max_square % i != 0:
-                    i -= 1
-                    continue
-                if max_length >= (max_square//i) >= min_length and max_width >= i >= min_width:
-                    main_sheet['a'] = max_square // i
-                    main_sheet['b'] = i
-                    cur_length = main_sheet['a']
-                    cur_width = main_sheet['b']
-                    available_waste_square = main_sheet['a'] * main_sheet['b'] - details_square
-                    main_sheet_square = main_sheet['a'] * main_sheet['b']
-                    if recursive():
-                        for i in range(len(res)):
-                            print(i, res[i])
-
-                        app = QtWidgets.QApplication(sys.argv)
-                        Dialog = QtWidgets.QDialog()
-                        ui = MapWindow()
-                        ui.setupUi(Dialog, res, 20)
-                        Dialog.show()
-                        Dialog.exec()
-                        sys.exit(app.exec_())
-                if max_width >= (max_square//i) >= min_width and max_length >= i >= min_length:
-                    main_sheet['a'] = i
-                    main_sheet['b'] = max_square // i
-                    cur_length = main_sheet['a']
-                    cur_width = main_sheet['b']
-                    available_waste_square = main_sheet['a'] * main_sheet['b'] - details_square
-                    main_sheet_square = main_sheet['a'] * main_sheet['b']
-                    if recursive():
-                        for i in range(len(res)):
-                            print(i, res[i])
-
-                        app = QtWidgets.QApplication(sys.argv)
-                        Dialog = QtWidgets.QDialog()
-                        ui = MapWindow()
-                        ui.setupUi(Dialog, res, 20)
-                        Dialog.show()
-                        Dialog.exec()
-                        sys.exit(app.exec_())
-                i -= 1
-            max_square += 1
-                # elif main_sheet['a'] < max_width:
-                #     main_sheet['a'] += 1
-                #     main_sheet['cut'] = None
-                #     main_sheet['m'] = None
-                #     available_waste_square = main_sheet['a'] * main_sheet['b'] - details_square
-                #     main_sheet_square = main_sheet['a'] * main_sheet['b']
-                # else:
-                #     print("Can't be placed!")
-                #     res = [main_sheet]
-                #     break
+        max_length = main_sheet['a']
+        main_sheet['a'] = int(np.ceil(details_square / main_sheet['b'])) if int(np.ceil(details_square / main_sheet['b'])) > min_length else min_length
+        main_sheet['b'] = int(np.ceil(details_square / main_sheet['a'])) if int(np.ceil(details_square / main_sheet['a'])) > min_width else min_width
+        available_waste_square = main_sheet['a'] * main_sheet['b'] - details_square
+        main_sheet_square = main_sheet['a'] * main_sheet['b']
+        while main_sheet['a'] <= max_length:
+            while main_sheet['b'] <= max_width:
+                if recursive():
+                    for i in range(len(res)):
+                        print(i, res[i])
+                    app = QtWidgets.QApplication(sys.argv)
+                    Dialog = QtWidgets.QDialog()
+                    ui = MapWindow()
+                    ui.setupUi(Dialog, res, 10)
+                    Dialog.show()
+                    Dialog.exec()
+                    sys.exit(app.exec_())
+                main_sheet['b'] += 1
+                available_waste_square = main_sheet['a'] * main_sheet['b'] - details_square
+                main_sheet_square = main_sheet['a'] * main_sheet['b']
+            main_sheet['a'] += 1
+            available_waste_square = main_sheet['a'] * main_sheet['b'] - details_square
+            main_sheet_square = main_sheet['a'] * main_sheet['b']
+        print("Can't be placed!")
+        res = [main_sheet]

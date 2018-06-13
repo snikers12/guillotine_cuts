@@ -7,7 +7,7 @@ from Warning import WarningWindow
 
 
 class GuillotineCuts:
-    def __init__(self, main_sheet, details, details_square, details_count, first_orient, first_cut, cell):
+    def __init__(self, main_sheet, details, details_square, details_count, min_length, min_width, cell):
         self.main_sheet = {  # главный лист
             'x': 0,  # положение левого нижнего угла листа на оси Х
             'y': 0,  # положение левого нижнего угла листа на оси Y
@@ -26,9 +26,11 @@ class GuillotineCuts:
         self.details = sorted(details, key=lambda item: (-item['a'] * item['b'], -item['a']))
         self.details_square = details_square  # общая площадь деталей
         self.details_count = details_count  # общее количество деталей
+        self.min_length = min_length  # минимальная длина листа, на котором можно разместить самую длинную деталь
+        self.min_width = min_width  # минимальная ширина листа, на котором можно разместить самую широкую деталь
         self.waste_square = 0  # площадь отходов
-        self.first_orient = first_orient  # первое проверяемое расположение детали: 0 - горизонтальное, 1 - вертикальное
-        self.first_cut = first_cut  # первый проверяемый разрез: 0 - горизонтальный, 1 - вертикальный
+        # self.first_orient = first_orient  # первое проверяемое расположение детали: 0 - горизонтальное, 1 - вертикальное
+        # self.first_cut = first_cut  # первый проверяемый разрез: 0 - горизонтальный, 1 - вертикальный
         self.cell = cell
 
     def get_details(self):
@@ -87,19 +89,15 @@ class GuillotineCuts:
 
     def get_orient(self, sheet, detail, first):
         if first:
-            return self.place_vertical(sheet, detail) if self.first_orient == 1 else self.place_horizontal(sheet,
-                                                                                                           detail)
+            return self.place_vertical(sheet, detail) if sheet['a'] >= sheet['b'] else self.place_horizontal(sheet,
+                                                                                                             detail)
         else:
-            return self.place_horizontal(sheet, detail) if self.first_orient == 1 else self.place_vertical(sheet,
-                                                                                                           detail)
+            return self.place_horizontal(sheet, detail) if sheet['a'] >= sheet['b'] else self.place_vertical(sheet,
+                                                                                                             detail)
 
-    def get_cut(self, sheet, detail, cur_cut=None):
-        if cur_cut is None:
-            return self.cut_vertical(sheet, detail) if self.first_cut == 1 else self.cut_horizontal(sheet, detail)
-        elif cur_cut:
-            return self.cut_horizontal(sheet, detail) if self.first_cut == cur_cut else self.is_detail(sheet, detail)
-        else:
-            return self.cut_vertical(sheet, detail) if self.first_cut == cur_cut else self.is_detail(sheet, detail)
+    def get_cut(self, sheet, detail):
+        return self.cut_vertical(sheet, detail, True) if sheet['b'] - detail['b'] < sheet['a'] - detail['a'] \
+            else self.cut_horizontal(sheet, detail, True)
 
     @staticmethod
     def get_sheets(act_list):
@@ -167,7 +165,7 @@ class GuillotineCuts:
             return True
         return False
 
-    def cut_horizontal(self, sheet, detail):
+    def cut_horizontal(self, sheet, detail, first):
         """
         Попытка горизонтального разреза и дальнейшее рекурсивное выполнение 
         :param sheet: лист, на котором производится разрез
@@ -177,8 +175,8 @@ class GuillotineCuts:
         False - в результате разреза листа, дальнейшее рекурсивное выполнение было отрицательным
         """
         if sheet['b'] == detail['b']:
-            if self.first_cut == 0:
-                return self.cut_vertical(sheet, detail)
+            if first:
+                return self.cut_vertical(sheet, detail, False)
             return self.is_detail(sheet, detail)
         sheet['cut'] = 0
         sheet['m'] = detail['b']
@@ -202,7 +200,7 @@ class GuillotineCuts:
         }
         self.res.append(new_sheet_2)
         self.res.append(new_sheet_1)
-        if not self.get_cut(self.res[-1], detail, 0):
+        if not self.cut_vertical(self.res[-1], detail, False):
             # если после рекурсивного выполнения с данным разрезом получен отрицательный результат,
             # то возвращаем те значения, что были до его выполнения
             for x in range(2):
@@ -212,7 +210,7 @@ class GuillotineCuts:
             return False
         return True
 
-    def cut_vertical(self, sheet, detail):
+    def cut_vertical(self, sheet, detail, first):
         """
         Попытка вертикального разреза и дальнейшее рекурсивное выполнение 
         :param sheet: лист, на котором производится разрез
@@ -222,8 +220,8 @@ class GuillotineCuts:
         False - в результате разреза листа, дальнейшее рекурсивное выполнение было отрицательным
         """
         if sheet['a'] == detail['a']:
-            if self.first_cut == 1:
-                return self.cut_horizontal(sheet, detail)
+            if first:
+                return self.cut_horizontal(sheet, detail, False)
             return self.is_detail(sheet, detail)
         sheet['cut'] = 1
         sheet['m'] = detail['a']
@@ -247,7 +245,7 @@ class GuillotineCuts:
         }
         self.res.append(new_sheet_2)
         self.res.append(new_sheet_1)
-        if not self.get_cut(self.res[-1], detail, 1):
+        if not self.cut_horizontal(self.res[-1], detail, False):
             # если после рекурсивного выполнения с данным разрезом получен отрицательный результат,
             # то возвращаем те значения, что были до его выполнения
             for x in range(2):
@@ -269,8 +267,14 @@ class GuillotineCuts:
         if self.main_sheet_square < self.details_square:
             self.warning()
         else:
-            max_width = self.main_sheet['a']
-            self.main_sheet['a'] = int(np.ceil(self.details_square / self.main_sheet['b']))
+            max_length = self.main_sheet['a']
+            max_width = self.main_sheet['b']
+            self.main_sheet['a'] = int(np.ceil(self.details_square / self.main_sheet['b'])) if \
+                self.min_length < int(np.ceil(self.details_square / self.main_sheet['b'])) else self.min_length
+            self.main_sheet['b'] = int(np.ceil(self.details_square / self.main_sheet['a'])) if \
+                self.min_width < int(np.ceil(self.details_square / self.main_sheet['a'])) else self.min_width
+            cur_length = self.main_sheet['a']
+            cur_width = self.main_sheet['b']
             self.available_waste_square = self.main_sheet['a'] * self.main_sheet['b'] - self.details_square
             self.main_sheet_square = self.main_sheet['a'] * self.main_sheet['b']
             while True:
@@ -289,6 +293,20 @@ class GuillotineCuts:
                     self.main_sheet['m'] = None
                     self.available_waste_square = self.main_sheet['a'] * self.main_sheet['b'] - self.details_square
                     self.main_sheet_square = self.main_sheet['a'] * self.main_sheet['b']
+                # elif cur_width < max_width:
+                #     cur_width += 1 if cur_width < max_width else 0
+                #     self.main_sheet['b'] = cur_width
+                #     self.main_sheet['cut'] = None
+                #     self.main_sheet['m'] = None
+                #     self.available_waste_square = self.main_sheet['a'] * self.main_sheet['b'] - self.details_square
+                #     self.main_sheet_square = self.main_sheet['a'] * self.main_sheet['b']
+                # elif cur_width >= max_width:
+                #     cur_length += 1 if cur_width < max_width else 0
+                #     self.main_sheet['b'] = cur_width
+                #     self.main_sheet['cut'] = None
+                #     self.main_sheet['m'] = None
+                #     self.available_waste_square = self.main_sheet['a'] * self.main_sheet['b'] - self.details_square
+                #     self.main_sheet_square = self.main_sheet['a'] * self.main_sheet['b']
                 else:
                     self.warning()
                     self.res = [self.main_sheet]
