@@ -1,13 +1,15 @@
+import sys
 from PyQt5 import QtWidgets
 
 import numpy as np
+from PyQt5.QtWidgets import QApplication
 
-from MapWindow import MapWindow
-from Warning import WarningWindow
+from PaintWindow import PaintWindow
+from Painting import Painting
 
 
 class GuillotineCuts:
-    def __init__(self, main_sheet, details, details_square, details_count, min_length, min_width, cell):
+    def __init__(self, main_sheet, details, details_square, details_count):
         self.main_sheet = {  # главный лист
             'x': 0,  # положение левого нижнего угла листа на оси Х
             'y': 0,  # положение левого нижнего угла листа на оси Y
@@ -15,23 +17,19 @@ class GuillotineCuts:
             'b': main_sheet['b'],  # ширина листа
             'ref_id': None,  # путем разрезания какого листа получен
             'det': None,
-            # если является деталью, то id этой детали: int - id детали, None - неиспользованный лист, 'n' - отход
+        # если является деталью, то id этой детали: int - id детали, None - неиспользованный лист, 'n' - отход
             'cut': None,  # разрез, который производится на данном листе: 0 - горизонтальный, 1 - вертикальный
             'm': None  # отступ при разрезе
         }
 
         self.main_sheet_square = main_sheet['a'] * main_sheet['b']  # площадь главного листа
         self.res = [self.main_sheet]  # список, с которым в дальнейшем будет идти работа
-        # список, в котором будут содеражаться детали
-        self.details = sorted(details, key=lambda item: (-item['a'] * item['b'], -item['a']))
+        self.details = details # список, в котором будут содеражаться детали
         self.details_square = details_square  # общая площадь деталей
         self.details_count = details_count  # общее количество деталей
-        self.min_length = min_length  # минимальная длина листа, на котором можно разместить самую длинную деталь
-        self.min_width = min_width  # минимальная ширина листа, на котором можно разместить самую широкую деталь
         self.waste_square = 0  # площадь отходов
-        # self.first_orient = first_orient  # первое проверяемое расположение детали: 0 - горизонтальное, 1 - вертикальное
-        # self.first_cut = first_cut  # первый проверяемый разрез: 0 - горизонтальный, 1 - вертикальный
-        self.cell = cell
+        self.first_orient = 1  # первое проверяемое расположение детали: 0 - горизонтальное, 1 - вертикальное
+        self.first_cut = 1  # первый проверяемый разрез: 0 - горизонтальный, 1 - вертикальный
 
     def get_details(self):
         """
@@ -89,15 +87,19 @@ class GuillotineCuts:
 
     def get_orient(self, sheet, detail, first):
         if first:
-            return self.place_vertical(sheet, detail) if sheet['a'] >= sheet['b'] else self.place_horizontal(sheet,
-                                                                                                             detail)
+            return self.place_vertical(sheet, detail) if self.first_orient == 1 else self.place_horizontal(sheet,
+                                                                                                           detail)
         else:
-            return self.place_horizontal(sheet, detail) if sheet['a'] >= sheet['b'] else self.place_vertical(sheet,
-                                                                                                             detail)
+            return self.place_horizontal(sheet, detail) if self.first_orient == 1 else self.place_vertical(sheet,
+                                                                                                           detail)
 
-    def get_cut(self, sheet, detail):
-        return self.cut_vertical(sheet, detail, True) if sheet['b'] - detail['b'] < sheet['a'] - detail['a'] \
-            else self.cut_horizontal(sheet, detail, True)
+    def get_cut(self, sheet, detail, cur_cut=None):
+        if cur_cut is None:
+            return self.cut_vertical(sheet, detail) if self.first_cut == 1 else self.cut_horizontal(sheet, detail)
+        elif cur_cut:
+            return self.cut_horizontal(sheet, detail) if self.first_cut == cur_cut else self.is_detail(sheet, detail)
+        else:
+            return self.cut_vertical(sheet, detail) if self.first_cut == cur_cut else self.is_detail(sheet, detail)
 
     @staticmethod
     def get_sheets(act_list):
@@ -131,13 +133,13 @@ class GuillotineCuts:
         :param sheet: лист, на котором идет расположение детали 
         :param detail: деталь
         :return:    
-        True - деталь можно расположить вертикально
-        False - деталь нельзя расположить вертикально
+        True - деталь можно расположить вертикльно
+        False - деталь нельзя расположить вертикльно
         """
+        if sheet['b'] < detail['a'] or sheet['a'] < detail['b'] or detail['or'] == 0:
+            return False
         if detail['a'] > detail['b']:
             detail['a'], detail['b'] = detail['b'], detail['a']
-        if sheet['a'] < detail['a'] or sheet['b'] < detail['b'] or detail['or'] == 0:
-            return False
         return True
 
     def is_detail(self, sheet, detail):
@@ -165,7 +167,7 @@ class GuillotineCuts:
             return True
         return False
 
-    def cut_horizontal(self, sheet, detail, first):
+    def cut_horizontal(self, sheet, detail):
         """
         Попытка горизонтального разреза и дальнейшее рекурсивное выполнение 
         :param sheet: лист, на котором производится разрез
@@ -175,8 +177,8 @@ class GuillotineCuts:
         False - в результате разреза листа, дальнейшее рекурсивное выполнение было отрицательным
         """
         if sheet['b'] == detail['b']:
-            if first:
-                return self.cut_vertical(sheet, detail, False)
+            if self.first_cut == 0:
+                return self.cut_vertical(sheet, detail)
             return self.is_detail(sheet, detail)
         sheet['cut'] = 0
         sheet['m'] = detail['b']
@@ -200,7 +202,7 @@ class GuillotineCuts:
         }
         self.res.append(new_sheet_2)
         self.res.append(new_sheet_1)
-        if not self.cut_vertical(self.res[-1], detail, False):
+        if not self.get_cut(self.res[-1], detail, 0):
             # если после рекурсивного выполнения с данным разрезом получен отрицательный результат,
             # то возвращаем те значения, что были до его выполнения
             for x in range(2):
@@ -210,7 +212,7 @@ class GuillotineCuts:
             return False
         return True
 
-    def cut_vertical(self, sheet, detail, first):
+    def cut_vertical(self, sheet, detail):
         """
         Попытка вертикального разреза и дальнейшее рекурсивное выполнение 
         :param sheet: лист, на котором производится разрез
@@ -220,8 +222,8 @@ class GuillotineCuts:
         False - в результате разреза листа, дальнейшее рекурсивное выполнение было отрицательным
         """
         if sheet['a'] == detail['a']:
-            if first:
-                return self.cut_horizontal(sheet, detail, False)
+            if self.first_cut == 1:
+                return self.cut_horizontal(sheet, detail)
             return self.is_detail(sheet, detail)
         sheet['cut'] = 1
         sheet['m'] = detail['a']
@@ -245,7 +247,7 @@ class GuillotineCuts:
         }
         self.res.append(new_sheet_2)
         self.res.append(new_sheet_1)
-        if not self.cut_horizontal(self.res[-1], detail, False):
+        if not self.get_cut(self.res[-1], detail, 1):
             # если после рекурсивного выполнения с данным разрезом получен отрицательный результат,
             # то возвращаем те значения, что были до его выполнения
             for x in range(2):
@@ -255,59 +257,35 @@ class GuillotineCuts:
             return False
         return True
 
-    @staticmethod
-    def warning():
-        Dialog = QtWidgets.QDialog()
-        ui = WarningWindow()
-        ui.setupUi(Dialog)
-        Dialog.show()
-        Dialog.exec()
-
-    def start_process(self):
+    def start_process(self, a):
+        # get_details()
         if self.main_sheet_square < self.details_square:
-            self.warning()
+            print("Can't be placed!")
         else:
-            max_length = self.main_sheet['a']
-            max_width = self.main_sheet['b']
-            self.main_sheet['a'] = int(np.ceil(self.details_square / self.main_sheet['b'])) if \
-                self.min_length < int(np.ceil(self.details_square / self.main_sheet['b'])) else self.min_length
-            self.main_sheet['b'] = int(np.ceil(self.details_square / self.main_sheet['a'])) if \
-                self.min_width < int(np.ceil(self.details_square / self.main_sheet['a'])) else self.min_width
-            cur_length = self.main_sheet['a']
-            cur_width = self.main_sheet['b']
+            max_width = self.main_sheet['a']
+            ms = self.main_sheet
+            self.main_sheet['a'] = int(np.ceil(self.details_square / self.main_sheet['b']))
             self.available_waste_square = self.main_sheet['a'] * self.main_sheet['b'] - self.details_square
             self.main_sheet_square = self.main_sheet['a'] * self.main_sheet['b']
             while True:
                 if self.recursive():
                     for i in range(len(self.res)):
                         print(i, self.res[i])
-                    Dialog = QtWidgets.QDialog()
-                    ui = MapWindow()
-                    ui.setupUi(Dialog, self.res, self.cell)
-                    Dialog.show()
-                    Dialog.exec()
-                    break
+                    # window = QtWidgets.QMainWindow()
+                    # ex = Painting(self.res)
+                    # ex.show()
+                    # ex.paint()
+                    # Paint = QtWidgets.QMainWindow()
+                    # ui = PaintWindow()
+                    # ui.setupUi(Paint)
+                    # Paint.show()
+                    # Paint.exec_()
+                    return self.res
                 elif self.main_sheet['a'] < max_width:
                     self.main_sheet['a'] += 1
-                    self.main_sheet['cut'] = None
-                    self.main_sheet['m'] = None
                     self.available_waste_square = self.main_sheet['a'] * self.main_sheet['b'] - self.details_square
                     self.main_sheet_square = self.main_sheet['a'] * self.main_sheet['b']
-                # elif cur_width < max_width:
-                #     cur_width += 1 if cur_width < max_width else 0
-                #     self.main_sheet['b'] = cur_width
-                #     self.main_sheet['cut'] = None
-                #     self.main_sheet['m'] = None
-                #     self.available_waste_square = self.main_sheet['a'] * self.main_sheet['b'] - self.details_square
-                #     self.main_sheet_square = self.main_sheet['a'] * self.main_sheet['b']
-                # elif cur_width >= max_width:
-                #     cur_length += 1 if cur_width < max_width else 0
-                #     self.main_sheet['b'] = cur_width
-                #     self.main_sheet['cut'] = None
-                #     self.main_sheet['m'] = None
-                #     self.available_waste_square = self.main_sheet['a'] * self.main_sheet['b'] - self.details_square
-                #     self.main_sheet_square = self.main_sheet['a'] * self.main_sheet['b']
                 else:
-                    self.warning()
+                    print("Can't be placed!")
                     self.res = [self.main_sheet]
                     break

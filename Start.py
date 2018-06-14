@@ -1,15 +1,14 @@
-import sys
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QWidget
 
 import AlgorithmClass
+import Algoritm
+from PaintWindow import PaintWindow
 from StartWindow import Ui_MainWindow
-from MapWindow import MapWindow
 
 
-class TestDialog(MapWindow):
+class TestApp2(PaintWindow):
     def __init__(self, dialog):
-        MapWindow.__init__(self)
+        PaintWindow.__init__(self)
         self.setupUi(dialog)
 
 
@@ -22,60 +21,50 @@ class TestApp(Ui_MainWindow):
         self.startButton.clicked.connect(self.startProcess)
 
     def addRow(self):
-        # Retrieve text from QLineEdit
+        #Retrieve text from QLineEdit
         detailWidth = self.detailWidth.text()
         detailHeight = self.detailHeight.text()
         detailCount = self.detailCount.text()
         comboBox = str(self.comboBox.currentIndex())
-        # Create a empty row at bottom of table
+        #Create a empty row at bottom of table
         numRows = self.tableWidget.rowCount()
         self.tableWidget.insertRow(numRows)
-        # Add text to the row
+        #Add text to the row
         self.tableWidget.setItem(numRows, 0, QtWidgets.QTableWidgetItem(detailCount))
         self.tableWidget.setItem(numRows, 1, QtWidgets.QTableWidgetItem(detailWidth))
         self.tableWidget.setItem(numRows, 2, QtWidgets.QTableWidgetItem(detailHeight))
         self.tableWidget.setItem(numRows, 3, QtWidgets.QTableWidgetItem(comboBox))
 
     def startProcess(self):
-        details_square, details_count = 0, 0
-        main_sheet = dict()
-        details = list()
-        main_sheet['a'] = int(self.sheetWidth.text())
-        main_sheet['b'] = int(self.sheetHeight.text())
-        min_length = 0
-        min_width = 0
-        numRows = self.tableWidget.rowCount()
-        for row in range(numRows):
-            detailCount = int(self.tableWidget.item(row, 0).text())
-            detailLength = int(self.tableWidget.item(row, 1).text())
-            detailWidth = int(self.tableWidget.item(row, 2).text())
-            orientation = int(self.tableWidget.item(row, 3).text()) - 1 if \
-                int(self.tableWidget.item(row, 3).text()) - 1 >= 0 else None
-            if detailLength < detailWidth:
-                detailLength, detailWidth = detailWidth, detailLength
-            details.append({
-                'sum': detailCount,
-                'a': detailLength,
-                'b': detailWidth,
-                'or': orientation
-            })
-            min_length = detailLength if orientation == 0 and detailLength > min_length else detailWidth if \
-                detailWidth > min_length else min_length
-            min_width = detailWidth if orientation == 1 and detailWidth > min_width else detailLength if \
-                detailLength > min_width else min_width
-            details_square += detailCount * detailLength * detailWidth
-            details_count += detailCount
-        # first_orient = abs(self.firstOrient.currentIndex() - 1)
-        # first_cut = abs(self.firstCut.currentIndex() - 1)
-        cell = self.unitPx.value()
-        algorithm = AlgorithmClass.GuillotineCuts(main_sheet, details, details_square, details_count, min_length,
-                                                  min_width, cell)
-        algorithm.start_process()
+        # details_square, details_count = 0, 0
+        # main_sheet = dict()
+        # details = list()
+        # main_sheet['a'] = int(self.sheetWidth.text())
+        # main_sheet['b'] = int(self.sheetHeight.text())
+        # numRows = self.tableWidget.rowCount()
+        # for row in range(numRows):
+        #     detailCount = int(self.tableWidget.item(row, 0).text())
+        #     detailWidth = int(self.tableWidget.item(row, 1).text())
+        #     detailHeight = int(self.tableWidget.item(row, 2).text())
+        #     orientation = int(self.tableWidget.item(row, 3).text())
+        #     details.append({
+        #         'sum': detailCount,
+        #         'a': detailWidth,
+        #         'b': detailHeight,
+        #         'or': orientation - 1 if orientation > 0 else None
+        #     })
+        #     details_square += detailCount * detailWidth * detailHeight
+        #     details_count += detailCount
+        # algorithm = AlgorithmClass.GuillotineCuts(main_sheet, details, details_square, details_count)
+        # algorithm.start_process()
+        dialog = QtWidgets.QDialog()
+        test_1 = TestApp2(dialog)
+        dialog.show()
+        dialog._exec()
 
 
 if __name__ == '__main__':
     import sys
-
     app = QtWidgets.QApplication(sys.argv)
     dialog = QtWidgets.QMainWindow()
 
