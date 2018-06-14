@@ -5,16 +5,13 @@ from qtpy import QtWidgets
 
 from MapWindow import MapWindow
 from Painting import Painting
+import math
 
 main_sheet = {  # главный лист
     'x': 0,  # положение левого нижнего угла листа на оси Х
     'y': 0,  # положение левого нижнего угла листа на оси Y
     'a': 0,  # длина листа
     'b': 0,  # ширина листа
-    'ref_id': None,  # путем разрезания какого листа получен
-    'det': None,  # если является деталью, то id этой детали: int - id детали, None - неиспользованный лист, 'n' - отход
-    'cut': None,  # разрез, который производится на данном листе: 0 - горизонтальный, 1 - вертикальный
-    'm': None  # отступ при разрезе
 }
 
 main_sheet_square = 0  # площадь главного листа
@@ -23,8 +20,6 @@ details = list()  # список, в котором будут содеража�
 details_square = 0  # общая площадь деталей
 details_count = 0  # общее количество деталей
 waste_square = 0  # площадь отходов
-first_orient = 1  # первое проверяемое расположение детали: 0 - горизонтальное, 1 - вертикальное
-first_cut = 1  # первый проверяемый разрез: 0 - горизонтальный, 1 - вертикальный
 min_length = 0
 min_width = 0
 
@@ -44,24 +39,24 @@ def get_details():
     # далее идем по файлу и счытываем детали, попутно считая их общую площадь и количество
     for line in f:
         s = line.split()
-        detailCount = int(s[0])
-        detailLength = int(s[1])
-        detailWidth = int(s[2])
+        detail_count = int(s[0])
+        detail_length = int(s[1])
+        detail_width = int(s[2])
         orientation = int(s[3]) if len(s) == 4 else None
-        if detailLength < detailWidth:
-            detailLength, detailWidth = detailWidth, detailLength
+        if detail_length < detail_width:
+            detail_length, detail_width = detail_width, detail_length
         details.append({
-            'sum': detailCount,
-            'a': detailLength,
-            'b': detailWidth,
+            'sum': detail_count,
+            'a': detail_length,
+            'b': detail_width,
             'or': orientation
         })
-        min_length = detailLength if orientation == 0 and detailLength > min_length else detailWidth if \
-            detailWidth > min_length else min_length
-        min_width = detailWidth if orientation == 1 and detailWidth > min_width else detailLength if \
-            detailLength > min_width else min_width
-        details_square += detailCount * detailLength * detailWidth
-        details_count += detailCount
+        min_length = detail_length if orientation == 0 and detail_length > min_length else detail_width if \
+            detail_width > min_length else min_length
+        min_width = detail_width if orientation == 1 and detail_width > min_width else detail_length if \
+            detail_length > min_width else min_width
+        details_square += detail_count * detail_length * detail_width
+        details_count += detail_count
     details = sorted(details, key=lambda item: (-item['a']*item['b'], -item['a']))
 
 
@@ -79,9 +74,9 @@ def recursive():
             if detail['sum'] == 0:
                 continue  # если деталей такого размера не осталось, переходим к следующему размеру
             if (get_orient(sheet, detail, True) and get_cut(sheet, detail, True)) or \
-                    (get_orient(sheet, detail, True) and get_cut(sheet, detail, True)) or \
+                    (get_orient(sheet, detail, True) and get_cut(sheet, detail, False)) or \
                     (get_orient(sheet, detail, False) and get_cut(sheet, detail, True)) or \
-                    (get_orient(sheet, detail, False) and get_cut(sheet, detail, True)):
+                    (get_orient(sheet, detail, False) and get_cut(sheet, detail, False)):
                 result = True
                 break
         if not result:
@@ -112,8 +107,8 @@ def get_cut(sheet, detail, first):
         return cut_vertical(sheet, detail, True) if sheet['b'] - detail['b'] < sheet['a'] - detail['a'] \
             else cut_horizontal(sheet, detail, True)
     else:
-        return cut_horizontal(sheet, detail, False) if sheet['b'] - detail['b'] < sheet['a'] - detail['a'] \
-            else cut_vertical(sheet, detail, False)
+        return cut_horizontal(sheet, detail, True) if sheet['b'] - detail['b'] < sheet['a'] - detail['a'] \
+            else cut_vertical(sheet, detail, True)
 
 
 def get_sheets(act_list):
@@ -122,7 +117,7 @@ def get_sheets(act_list):
     :param act_list: основной список, с которым ведется работа 
     :return: спиоск объектов из основного листа, которые не являются деталями и не были подвергнуты разрезанию
     """
-    return [item for item in act_list if item['det'] is None and item['cut'] is None]
+    return [item for item in act_list if item.get('det') is None]
 
 
 def place_horizontal(sheet, detail):
@@ -187,6 +182,7 @@ def is_detail(sheet, detail):
 def cut_horizontal(sheet, detail, first):
     """
     Попытка горизонтального разреза и дальнейшее рекурсивное выполнение 
+    :param first: 
     :param sheet: лист, на котором производится разрез
     :param detail: деталь, которую нужно вырезать
     :return: 
@@ -205,18 +201,12 @@ def cut_horizontal(sheet, detail, first):
         'y': sheet['y'],
         'a': sheet['a'],
         'b': detail['b'],
-        'ref_id': res.index(sheet),
-        'det': None,
-        'cut': None
     }
     new_sheet_2 = {
         'x': sheet['x'],
         'y': sheet['y'] + detail['b'],
         'a': sheet['a'],
         'b': sheet['b'] - detail['b'],
-        'ref_id': res.index(sheet),
-        'det': None,
-        'cut': None
     }
     res.append(new_sheet_2)
     res.append(new_sheet_1)
@@ -225,7 +215,7 @@ def cut_horizontal(sheet, detail, first):
         # то возвращаем те значения, что были до его выполнения
         for x in range(2):
             last_record = res.pop()
-            if last_record['det'] == 'n':
+            if last_record.get('det') == 'n':
                 waste_square -= last_record['a'] * last_record['b']
         return False
     return True
@@ -234,6 +224,7 @@ def cut_horizontal(sheet, detail, first):
 def cut_vertical(sheet, detail, first):
     """
     Попытка вертикального разреза и дальнейшее рекурсивное выполнение 
+    :param first: 
     :param sheet: лист, на котором производится разрез
     :param detail: деталь, которую нужно вырезать
     :return: 
@@ -252,18 +243,12 @@ def cut_vertical(sheet, detail, first):
         'y': sheet['y'],
         'a': detail['a'],
         'b': sheet['b'],
-        'ref_id': res.index(sheet),
-        'det': None,
-        'cut': None
     }
     new_sheet_2 = {
         'x': sheet['x'] + detail['a'],
         'y': sheet['y'],
         'a': sheet['a'] - detail['a'],
         'b': sheet['b'],
-        'ref_id': res.index(sheet),
-        'det': None,
-        'cut': None
     }
     res.append(new_sheet_2)
     res.append(new_sheet_1)
@@ -272,7 +257,7 @@ def cut_vertical(sheet, detail, first):
         # то возвращаем те значения, что были до его выполнения
         for x in range(2):
             last_record = res.pop()
-            if last_record['det'] == 'n':
+            if last_record.get('det') == 'n':
                 waste_square -= last_record['a'] * last_record['b']
         return False
     return True
@@ -287,9 +272,8 @@ if __name__ == '__main__':
         max_width = main_sheet['b']
         max_square = details_square
         while max_square < max_length * max_width:
-            # i = min_width if min_width < min_length else min_length
             i = max_width
-            while i >= min_width:
+            while i >= min_width and i >= int(np.ceil(math.sqrt(max_square))):
                 if max_square % i != 0:
                     i -= 1
                     continue

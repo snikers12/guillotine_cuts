@@ -11,10 +11,9 @@ main_sheet = {  # главный лист
     'y': 0,  # положение левого нижнего угла листа на оси Y
     'a': 0,  # длина листа
     'b': 0,  # ширина листа
-    'ref_id': None,  # путем разрезания какого листа получен
-    'det': None,  # если является деталью, то id этой детали: int - id детали, None - неиспользованный лист, 'n' - отход
-    'cut': None,  # разрез, который производится на данном листе: 0 - горизонтальный, 1 - вертикальный
-    'm': None  # отступ при разрезе
+    # 'det': None,  # если является деталью, то id этой детали: int - id детали, None - неиспользованный лист, 'n' - отход
+    # 'cut': None,  # разрез, который производится на данном листе: 0 - горизонтальный, 1 - вертикальный
+    # 'm': None  # отступ при разрезе
 }
 
 main_sheet_square = 0  # площадь главного листа
@@ -119,7 +118,7 @@ def get_sheets(act_list):
     :param act_list: основной список, с которым ведется работа 
     :return: спиоск объектов из основного листа, которые не являются деталями и не были подвергнуты разрезанию
     """
-    return [item for item in act_list if item['det'] is None and item['cut'] is None]
+    return [item for item in act_list if item.get('det') is None and item.get('cut') is None]
 
 
 def place_horizontal(sheet, detail):
@@ -202,18 +201,16 @@ def cut_horizontal(sheet, detail, first):
         'y': sheet['y'],
         'a': sheet['a'],
         'b': detail['b'],
-        'ref_id': res.index(sheet),
-        'det': None,
-        'cut': None
+        # 'det': None,
+        # 'cut': None
     }
     new_sheet_2 = {
         'x': sheet['x'],
         'y': sheet['y'] + detail['b'],
         'a': sheet['a'],
         'b': sheet['b'] - detail['b'],
-        'ref_id': res.index(sheet),
-        'det': None,
-        'cut': None
+        # 'det': None,
+        # 'cut': None
     }
     res.append(new_sheet_2)
     res.append(new_sheet_1)
@@ -222,7 +219,7 @@ def cut_horizontal(sheet, detail, first):
         # то возвращаем те значения, что были до его выполнения
         for x in range(2):
             last_record = res.pop()
-            if last_record['det'] == 'n':
+            if last_record.get('det') == 'n':
                 waste_square -= last_record['a'] * last_record['b']
         return False
     return True
@@ -249,18 +246,16 @@ def cut_vertical(sheet, detail, first):
         'y': sheet['y'],
         'a': detail['a'],
         'b': sheet['b'],
-        'ref_id': res.index(sheet),
-        'det': None,
-        'cut': None
+        # 'det': None,
+        # 'cut': None
     }
     new_sheet_2 = {
         'x': sheet['x'] + detail['a'],
         'y': sheet['y'],
         'a': sheet['a'] - detail['a'],
         'b': sheet['b'],
-        'ref_id': res.index(sheet),
-        'det': None,
-        'cut': None
+        # 'det': None,
+        # 'cut': None
     }
     res.append(new_sheet_2)
     res.append(new_sheet_1)
@@ -269,7 +264,7 @@ def cut_vertical(sheet, detail, first):
         # то возвращаем те значения, что были до его выполнения
         for x in range(2):
             last_record = res.pop()
-            if last_record['det'] == 'n':
+            if last_record.get('det') == 'n':
                 waste_square -= last_record['a'] * last_record['b']
         return False
     return True
@@ -280,18 +275,51 @@ if __name__ == '__main__':
     if main_sheet_square < details_square:
         print("Can't be placed!")
     else:
-        available_waste_square = main_sheet['a'] * main_sheet['b'] - details_square
-        main_sheet_square = main_sheet['a'] * main_sheet['b']
-        if recursive():
-            for i in range(len(res)):
-                print(i, res[i])
+        max_length = main_sheet['a']
+        max_width = main_sheet['b']
+        max_square = details_square
+        while max_square < max_length * max_width:
+            # i = min_width if min_width < min_length else min_length
+            i = max_width
+            while i >= min_width:
+                if max_square % i != 0:
+                    i -= 1
+                    continue
+                if max_length >= (max_square//i) >= min_length and max_width >= i >= min_width:
+                    main_sheet['a'] = max_square // i
+                    main_sheet['b'] = i
+                    cur_length = main_sheet['a']
+                    cur_width = main_sheet['b']
+                    available_waste_square = main_sheet['a'] * main_sheet['b'] - details_square
+                    main_sheet_square = main_sheet['a'] * main_sheet['b']
+                    if recursive():
+                        for i in range(len(res)):
+                            print(i, res[i])
 
-            app = QtWidgets.QApplication(sys.argv)
-            Dialog = QtWidgets.QDialog()
-            ui = MapWindow()
-            ui.setupUi(Dialog, res, 25)
-            Dialog.show()
-            Dialog.exec()
-            sys.exit(app.exec_())
-        else:
-            print("Can't be placed!")
+                        app = QtWidgets.QApplication(sys.argv)
+                        Dialog = QtWidgets.QDialog()
+                        ui = MapWindow()
+                        ui.setupUi(Dialog, res, 20)
+                        Dialog.show()
+                        Dialog.exec()
+                        sys.exit(app.exec_())
+                if max_width >= (max_square//i) >= min_width and max_length >= i >= min_length:
+                    main_sheet['a'] = i
+                    main_sheet['b'] = max_square // i
+                    cur_length = main_sheet['a']
+                    cur_width = main_sheet['b']
+                    available_waste_square = main_sheet['a'] * main_sheet['b'] - details_square
+                    main_sheet_square = main_sheet['a'] * main_sheet['b']
+                    if recursive():
+                        for i in range(len(res)):
+                            print(i, res[i])
+
+                        app = QtWidgets.QApplication(sys.argv)
+                        Dialog = QtWidgets.QDialog()
+                        ui = MapWindow()
+                        ui.setupUi(Dialog, res, 20)
+                        Dialog.show()
+                        Dialog.exec()
+                        sys.exit(app.exec_())
+                i -= 1
+            max_square += 1

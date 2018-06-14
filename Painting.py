@@ -37,21 +37,21 @@ class Painting(QWidget):
                             self.margin * 2 + item['b'] * self.cell,
                             Qt.AlignHCenter, str(item['a']) + 'x' + str(item['b']))
                 i += 1
-            if item['cut'] == 1:
+            if item.get('cut') == 1:
                 qp.drawLine(self.margin + (item['x'] + item['m']) * self.cell, self.margin + item['y'] * self.cell,
                             self.margin + (item['x'] + item['m']) * self.cell,
                             self.margin + (item['y'] + item['b']) * self.cell)
-            elif item['cut'] == 0:
+            elif item.get('cut') == 0:
                 qp.drawLine(self.margin + item['x'] * self.cell, self.margin + (item['y'] + item['m']) * self.cell,
                             self.margin + (item['x'] + item['a']) * self.cell,
                             self.margin + (item['y'] + item['m']) * self.cell)
-            elif item['cut'] is None:
+            elif item.get('cut') is None:
                 qp.drawText(self.margin + item['x'] * self.cell,
                             self.margin + item['y'] * self.cell,
                             item['a'] * self.cell,
                             item['b'] * self.cell,
                             Qt.AlignCenter, str(item['a']) + 'x' + str(item['b']))
-            if item['det'] == 'n':
+            if item.get('det') == 'n':
                 brush = QBrush(Qt.BDiagPattern)
                 qp.setBrush(brush)
                 qp.drawRect(self.margin + item['x'] * self.cell,

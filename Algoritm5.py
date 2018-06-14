@@ -79,9 +79,9 @@ def recursive():
             if detail['sum'] == 0:
                 continue  # если деталей такого размера не осталось, переходим к следующему размеру
             if (get_orient(sheet, detail, True) and get_cut(sheet, detail, True)) or \
-                    (get_orient(sheet, detail, True) and get_cut(sheet, detail, True)) or \
+                    (get_orient(sheet, detail, True) and get_cut(sheet, detail, False)) or \
                     (get_orient(sheet, detail, False) and get_cut(sheet, detail, True)) or \
-                    (get_orient(sheet, detail, False) and get_cut(sheet, detail, True)):
+                    (get_orient(sheet, detail, False) and get_cut(sheet, detail, False)):
                 result = True
                 break
         if not result:
@@ -112,8 +112,8 @@ def get_cut(sheet, detail, first):
         return cut_vertical(sheet, detail, True) if sheet['b'] - detail['b'] < sheet['a'] - detail['a'] \
             else cut_horizontal(sheet, detail, True)
     else:
-        return cut_horizontal(sheet, detail, False) if sheet['b'] - detail['b'] < sheet['a'] - detail['a'] \
-            else cut_vertical(sheet, detail, False)
+        return cut_horizontal(sheet, detail, True) if sheet['b'] - detail['b'] < sheet['a'] - detail['a'] \
+            else cut_vertical(sheet, detail, True)
 
 
 def get_sheets(act_list):
@@ -297,7 +297,7 @@ if __name__ == '__main__':
                     app = QtWidgets.QApplication(sys.argv)
                     Dialog = QtWidgets.QDialog()
                     ui = MapWindow()
-                    ui.setupUi(Dialog, res, 10)
+                    ui.setupUi(Dialog, res, 20)
                     Dialog.show()
                     Dialog.exec()
                     sys.exit(app.exec_())
