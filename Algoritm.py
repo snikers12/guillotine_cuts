@@ -6,6 +6,7 @@ from qtpy import QtWidgets
 from MapWindow import MapWindow
 from Painting import Painting
 import math
+import time
 
 main_sheet = {  # главный лист
     'x': 0,  # положение левого нижнего угла листа на оси Х
@@ -29,7 +30,7 @@ def get_details():
     Считываем из файла главный лист, на котором необходимо будет размесить детали, и сами детали
     :return: 
     """
-    f = open('details.txt', 'r')  # открытие файла с деталями для чтения
+    f = open('details1.txt', 'r')  # открытие файла с деталями для чтения
     global details_square, details_count, main_sheet_square, details, min_width, min_length
     # считываем длину и ширину главного листа
     l = f.readline().split()
@@ -62,11 +63,12 @@ def get_details():
 
 def recursive():
     global waste_square
-    sheets = get_sheets(res)  # получаем доступные для разрезания листы
+    sheets = sorted(get_sheets(res), key=lambda item: (item['a']*item['b']))
+    # получаем доступные для разрезания листы
     # если список листов не пустой, то берем последний из него
     # если деталей в этом же случае не осталось, то возвращаем True
     # если список листов пуст и деталей осталось больше 0, то возвращаем False
-    sheet = sheets[-1] if len(sheets) > 0 else False if details_count > 0 else True
+    sheet = sheets[0] if len(sheets) > 0 else False if details_count > 0 else True
     if not isinstance(sheet, bool):
         result = False  # можно ли из этого листа вырезать деталь,
         # и будет ли результат положительным при дальнейшем рекурсивном выполнении
@@ -88,7 +90,7 @@ def recursive():
             else:
                 # если допустимая площадь отходов не превышается, увеличиваем ее и снова запускаем рекурсию
                 waste_square += sheet_square
-                sheet['det'] = 'n'
+                sheet['det'] = False
                 return recursive()
     else:
         return sheet
@@ -115,9 +117,9 @@ def get_sheets(act_list):
     """
     Получаем список доступных для разрезания листов
     :param act_list: основной список, с которым ведется работа 
-    :return: спиоск объектов из основного листа, которые не являются деталями и не были подвергнуты разрезанию
+    :return: список объектов из основного листа, которые не являются деталями и не были подвергнуты разрезанию
     """
-    return [item for item in act_list if item.get('det') is None]
+    return [item for item in act_list if item.get('det') is None and item.get('cut') is None]
 
 
 def place_horizontal(sheet, detail):
@@ -164,14 +166,12 @@ def is_detail(sheet, detail):
     """
     global details_count
     if sheet['a'] == detail['a'] and sheet['b'] == detail['b']:
-        sheet['det'] = details.index(detail)
+        sheet['det'] = True
         detail['sum'] -= 1
         details_count -= 1
         if not recursive():
             # если дальнейшее рекурсивное выполнение дает отрицательный результат,
             # то возвращаем те значения, что были до его выполнения
-            if detail['a'] < detail['b']:
-                detail['a'], detail['b'] = detail['b'], detail['a']
             detail['sum'] += 1
             details_count += 1
             return False
@@ -182,7 +182,7 @@ def is_detail(sheet, detail):
 def cut_horizontal(sheet, detail, first):
     """
     Попытка горизонтального разреза и дальнейшее рекурсивное выполнение 
-    :param first: 
+    :param first: является ли этот разрез первым
     :param sheet: лист, на котором производится разрез
     :param detail: деталь, которую нужно вырезать
     :return: 
@@ -215,7 +215,7 @@ def cut_horizontal(sheet, detail, first):
         # то возвращаем те значения, что были до его выполнения
         for x in range(2):
             last_record = res.pop()
-            if last_record.get('det') == 'n':
+            if last_record.get('det') is False:
                 waste_square -= last_record['a'] * last_record['b']
         return False
     return True
@@ -224,7 +224,7 @@ def cut_horizontal(sheet, detail, first):
 def cut_vertical(sheet, detail, first):
     """
     Попытка вертикального разреза и дальнейшее рекурсивное выполнение 
-    :param first: 
+    :param first: является ли этот разрез первым
     :param sheet: лист, на котором производится разрез
     :param detail: деталь, которую нужно вырезать
     :return: 
@@ -257,7 +257,7 @@ def cut_vertical(sheet, detail, first):
         # то возвращаем те значения, что были до его выполнения
         for x in range(2):
             last_record = res.pop()
-            if last_record.get('det') == 'n':
+            if last_record.get('det') is False:
                 waste_square -= last_record['a'] * last_record['b']
         return False
     return True
@@ -268,26 +268,30 @@ if __name__ == '__main__':
     if main_sheet_square < details_square:
         print("Can't be placed!")
     else:
+        start_time = time.time()
         max_length = main_sheet['a']
         max_width = main_sheet['b']
         max_square = details_square
         while max_square < max_length * max_width:
             i = max_width
-            while i >= min_width and i >= int(np.ceil(math.sqrt(max_square))):
-                if max_square % i != 0:
+            checked = []
+            while i >= min_width:
+                if max_square % i != 0 or i in checked:
                     i -= 1
                     continue
                 if max_length >= (max_square//i) >= min_length and max_width >= i >= min_width:
+                    checked += [i, max_square//i]
                     main_sheet['a'] = max_square // i
                     main_sheet['b'] = i
                     cur_length = main_sheet['a']
                     cur_width = main_sheet['b']
                     available_waste_square = main_sheet['a'] * main_sheet['b'] - details_square
                     main_sheet_square = main_sheet['a'] * main_sheet['b']
+                    main_sheet['cut'] = None
                     if recursive():
                         for i in range(len(res)):
                             print(i, res[i])
-
+                        print(time.time()-start_time)
                         app = QtWidgets.QApplication(sys.argv)
                         Dialog = QtWidgets.QDialog()
                         ui = MapWindow()
@@ -296,16 +300,18 @@ if __name__ == '__main__':
                         Dialog.exec()
                         sys.exit(app.exec_())
                 if max_width >= (max_square//i) >= min_width and max_length >= i >= min_length:
+                    checked += [i, max_square//i]
                     main_sheet['a'] = i
                     main_sheet['b'] = max_square // i
                     cur_length = main_sheet['a']
                     cur_width = main_sheet['b']
                     available_waste_square = main_sheet['a'] * main_sheet['b'] - details_square
                     main_sheet_square = main_sheet['a'] * main_sheet['b']
+                    main_sheet['cut'] = None
                     if recursive():
                         for i in range(len(res)):
                             print(i, res[i])
-
+                        print(time.time()-start_time)
                         app = QtWidgets.QApplication(sys.argv)
                         Dialog = QtWidgets.QDialog()
                         ui = MapWindow()
@@ -315,13 +321,4 @@ if __name__ == '__main__':
                         sys.exit(app.exec_())
                 i -= 1
             max_square += 1
-                # elif main_sheet['a'] < max_width:
-                #     main_sheet['a'] += 1
-                #     main_sheet['cut'] = None
-                #     main_sheet['m'] = None
-                #     available_waste_square = main_sheet['a'] * main_sheet['b'] - details_square
-                #     main_sheet_square = main_sheet['a'] * main_sheet['b']
-                # else:
-                #     print("Can't be placed!")
-                #     res = [main_sheet]
-                #     break
+        print("Can't be placed!")

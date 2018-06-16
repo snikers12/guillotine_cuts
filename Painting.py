@@ -51,7 +51,7 @@ class Painting(QWidget):
                             item['a'] * self.cell,
                             item['b'] * self.cell,
                             Qt.AlignCenter, str(item['a']) + 'x' + str(item['b']))
-            if item.get('det') == 'n':
+            if item.get('det') is False:
                 brush = QBrush(Qt.BDiagPattern)
                 qp.setBrush(brush)
                 qp.drawRect(self.margin + item['x'] * self.cell,
